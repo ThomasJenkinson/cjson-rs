@@ -1,0 +1,22 @@
+[package]
+name = "cjson-rs-ffi"
+description = "C ABI shim crate for cjson-rs — produces libcjson.{so,dylib,a}, a binary-compatible drop-in replacement for upstream libcjson. Existing C consumers link unmodified."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords = ["cjson", "json", "ffi", "c-bindings", "memory-safety"]
+categories = ["external-ffi-bindings", "parser-implementations"]
+
+[lib]
+# Output binary is libcjson.{so,dylib,a} — drop-in replacement for upstream
+# libcjson. The Rust import name is `cjson`.
+name = "cjson"
+path = "src/lib.rs"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+cjson-rs = { path = "../cjson-rs" }
+libc = "0.2"

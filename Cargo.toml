@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "cjson-rs",
+    "cjson-rs-ffi",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.94"
+license = "MIT"
+repository = "https://github.com/ThomasJenkinson/cjson-rs"
+authors = ["Thomas Jenkinson"]

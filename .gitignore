@@ -1,0 +1,28 @@
+# Cargo build artefacts
+target/
+**/target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Upstream cJSON test suite (added as submodule in Week 2, not committed directly)
+/conformance/upstream-tests/build/
+/conformance/upstream-tests/out/
+
+# C smoke test binary
+/cjson-rs-ffi/tests/c/smoke
+
+# Upstream test runner artefacts
+/conformance/build/
+
+# Fuzz artefacts — keep target schemas and seed corpus, drop runtime artefacts
+/cjson-rs-ffi/fuzz/target/
+/cjson-rs-ffi/fuzz/artifacts/
+/cjson-rs-ffi/fuzz/coverage/
+/cjson-rs-ffi/fuzz/Cargo.lock

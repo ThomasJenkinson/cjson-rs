@@ -1,0 +1,19 @@
+[package]
+name = "cjson-rs"
+description = "Memory-safe Rust JSON parser, RFC 8259 conformant. Value model is binary-compatible with cJSON so the companion FFI crate can ship a drop-in libcjson replacement."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme = "../README.md"
+keywords = ["json", "parser", "cjson", "memory-safety", "rfc8259"]
+categories = ["parser-implementations", "encoding"]
+
+[lib]
+name = "cjson_rs"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror = "1.0"
