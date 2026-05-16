@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rust-tests:
+    name: Rust tests (tokeniser, parser, serialiser, FFI smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo build artefacts
+        uses: Swatinem/rust-cache@v2
+      - name: cargo build --release
+        run: cargo build --release --verbose --workspace
+      - name: cargo test --workspace
+        run: cargo test --release --verbose --workspace --no-fail-fast
+
+  c-smoke:
+    name: C smoke test (compile + link libcjson.so)
+    runs-on: ubuntu-latest
+    needs: rust-tests
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo build artefacts
+        uses: Swatinem/rust-cache@v2
+      - name: Run C smoke test
+        run: bash cjson-rs-ffi/tests/c/run-c-smoke.sh
+
+  upstream-conformance:
+    name: Upstream cJSON public-API tests (98% target)
+    runs-on: ubuntu-latest
+    needs: rust-tests
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo build artefacts
+        uses: Swatinem/rust-cache@v2
+      - name: Run upstream cJSON test runner
+        run: bash conformance/run-upstream-tests.sh
