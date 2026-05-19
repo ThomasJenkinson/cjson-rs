@@ -14,7 +14,7 @@ pub mod tokeniser;
 pub mod value;
 
 pub use error::{Error, Position};
-pub use parser::{parse, parse_with_options, ParserOptions};
+pub use parser::{parse, parse_prefix, parse_with_options, ParserOptions};
 pub use serialiser::{serialise, serialise_pretty};
 pub use token::{PositionedToken, Token};
 pub use tokeniser::Tokeniser;
