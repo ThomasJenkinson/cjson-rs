@@ -12,10 +12,14 @@
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 /// Run `f` inside `catch_unwind`. On panic, return `on_panic`.
-///
-/// `f` is wrapped in `AssertUnwindSafe` because all FFI bodies operate
-/// on caller-owned C pointers — we have no Rust state that could be
-/// left in an inconsistent observable state by an unwind.
+  ///
+  /// `f` is wrapped in `AssertUnwindSafe` because all FFI bodies operate
+  /// on caller-owned C pointers — we have no Rust state that could be
+  /// left in an inconsistent observable state by an unwind.
+  ///
+  /// Invariant: the safe core must remain stateless per-parse. Introducing
+  /// interior mutability (RefCell, Cell, OnceCell, etc.) would invalidate
+  /// this `AssertUnwindSafe` — a panic mid-borrow could leave it poisoned.
 pub(crate) fn guard<T, F>(on_panic: T, f: F) -> T
 where
     F: FnOnce() -> T,
