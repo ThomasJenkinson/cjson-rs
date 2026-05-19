@@ -28,12 +28,12 @@ pub enum Token {
     String(String),
 }
 
-  #[derive(Debug, Clone, PartialEq)]
-  pub struct PositionedToken {
-      pub token: Token,
-      /// Position of the first byte of this token.
-      pub pos: Position,
-      /// Position immediately after the last byte of this token.
-      /// Needed by `parse_prefix` to report a precise `parse_end` byte.
-      pub end: Position,
+#[derive(Debug, Clone, PartialEq)]
+pub struct PositionedToken {
+    pub token: Token,
+    /// Position of the first byte of this token.
+    pub pos: Position,
+    /// Position immediately after the last byte of this token.
+    /// Needed by `parse_prefix` to report a precise `parse_end` byte.
+    pub end: Position,
 }

@@ -26,7 +26,7 @@ use crate::types::{
     cJSON, CJSON_ARRAY, CJSON_FALSE, CJSON_INVALID, CJSON_IS_REFERENCE, CJSON_NULL, CJSON_NUMBER,
     CJSON_OBJECT, CJSON_RAW, CJSON_STRING, CJSON_STRING_IS_CONST, CJSON_TRUE,
 };
-use cjson_rs::{parse, serialise, Value};
+use cjson_rs::{parse, parse_prefix, serialise, Value};
 use std::cell::Cell;
 use std::ffi::{c_char, c_double, c_int, CStr};
 use std::ptr;
@@ -1068,58 +1068,58 @@ pub unsafe extern "C" fn cJSON_Compare(
 
 #[no_mangle]
 pub unsafe extern "C" fn cJSON_ParseWithOpts(
-      value: *const c_char,
-      return_parse_end: *mut *const c_char,
-      require_null_terminated: cJSON_bool,
-  ) -> *mut cJSON {
-      guard(ptr::null_mut(), || {
-          if value.is_null() {
-              set_last_error(ptr::null());
-              if !return_parse_end.is_null() {
-                  *return_parse_end = ptr::null();
-              }
-              return ptr::null_mut();
-          }
-          let bytes = CStr::from_ptr(value).to_bytes();
-          let (parsed_bytes, bom_skip) = strip_utf8_bom(bytes);
-          if require_null_terminated != 0 {
-              match parse(parsed_bytes) {
-                  Ok(v) => {
-                      set_last_error(ptr::null());
-                      if !return_parse_end.is_null() {
-                          *return_parse_end = value.add(bytes.len());
-                      }
-                      value_to_cjson(&v)
-                  }
-                  Err(e) => {
-                      let err_ptr = value.add(bom_skip + error_byte_offset(&e, parsed_bytes.len()));
-                      set_last_error(err_ptr);
-                      if !return_parse_end.is_null() {
-                          *return_parse_end = err_ptr;
-                      }
-                      ptr::null_mut()
-                  }
-              }
-          } else {
-              match parse_prefix(parsed_bytes) {
-                  Ok((v, consumed)) => {
-                      set_last_error(ptr::null());
-                      if !return_parse_end.is_null() {
-                          *return_parse_end = value.add(bom_skip + consumed);
-                      }
-                      value_to_cjson(&v)
-                  }
-                  Err(e) => {
-                      let err_ptr = value.add(bom_skip + error_byte_offset(&e, parsed_bytes.len()));
-                      set_last_error(err_ptr);
-                      if !return_parse_end.is_null() {
-                          *return_parse_end = err_ptr;
-                      }
-                      ptr::null_mut()
-                  }
-              }
-          }
-      })
+    value: *const c_char,
+    return_parse_end: *mut *const c_char,
+    require_null_terminated: cJSON_bool,
+) -> *mut cJSON {
+    guard(ptr::null_mut(), || {
+        if value.is_null() {
+            set_last_error(ptr::null());
+            if !return_parse_end.is_null() {
+                *return_parse_end = ptr::null();
+            }
+            return ptr::null_mut();
+        }
+        let bytes = CStr::from_ptr(value).to_bytes();
+        let (parsed_bytes, bom_skip) = strip_utf8_bom(bytes);
+        if require_null_terminated != 0 {
+            match parse(parsed_bytes) {
+                Ok(v) => {
+                    set_last_error(ptr::null());
+                    if !return_parse_end.is_null() {
+                        *return_parse_end = value.add(bytes.len());
+                    }
+                    value_to_cjson(&v)
+                }
+                Err(e) => {
+                    let err_ptr = value.add(bom_skip + error_byte_offset(&e, parsed_bytes.len()));
+                    set_last_error(err_ptr);
+                    if !return_parse_end.is_null() {
+                        *return_parse_end = err_ptr;
+                    }
+                    ptr::null_mut()
+                }
+            }
+        } else {
+            match parse_prefix(parsed_bytes) {
+                Ok((v, consumed)) => {
+                    set_last_error(ptr::null());
+                    if !return_parse_end.is_null() {
+                        *return_parse_end = value.add(bom_skip + consumed);
+                    }
+                    value_to_cjson(&v)
+                }
+                Err(e) => {
+                    let err_ptr = value.add(bom_skip + error_byte_offset(&e, parsed_bytes.len()));
+                    set_last_error(err_ptr);
+                    if !return_parse_end.is_null() {
+                        *return_parse_end = err_ptr;
+                    }
+                    ptr::null_mut()
+                }
+            }
+        }
+    })
 }
 
 #[no_mangle]
@@ -1132,8 +1132,8 @@ pub unsafe extern "C" fn cJSON_ParseWithLengthOpts(
     guard(ptr::null_mut(), || {
         if value.is_null() {
             set_last_error(ptr::null());
-          return ptr::null_mut();
-      }
+            return ptr::null_mut();
+        }
         let bytes = std::slice::from_raw_parts(value as *const u8, buffer_length);
         let (parsed_bytes, bom_skip) = strip_utf8_bom(bytes);
         if require_null_terminated != 0 {
@@ -1506,12 +1506,11 @@ pub unsafe extern "C" fn cJSON_PrintPreallocated(
         if needed > length as usize {
             return CJSON_BOOL_FALSE;
         }
-      ptr::copy_nonoverlapping(bytes.as_ptr() as *const c_char, buffer, bytes.len());
-      *buffer.add(bytes.len()) = 0;
-      CJSON_BOOL_TRUE
+        ptr::copy_nonoverlapping(bytes.as_ptr() as *const c_char, buffer, bytes.len());
+        *buffer.add(bytes.len()) = 0;
+        CJSON_BOOL_TRUE
     })
 }
-
 
 #[no_mangle]
 pub unsafe extern "C" fn cJSON_SetNumberHelper(
