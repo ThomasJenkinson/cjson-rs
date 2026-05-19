@@ -34,7 +34,32 @@ impl<'a> Tokeniser<'a> {
         }
         Ok(out)
     }
-
+    /// Tokenise as many tokens as possible from `input`, stopping silently
+    /// on the first tokenise error or at end-of-input. Returns the tokens
+    /// successfully read plus the byte offset immediately after the last
+    /// consumed token (i.e. *not* including any trailing whitespace or
+    /// unrecognised bytes). Used by `parse_prefix` to support cJSON's
+    /// `require_null_terminated = false` mode.
+    pub fn tokenise_prefix(input: &'a [u8]) -> (Vec<PositionedToken>, usize) {
+        let mut t = Self::new(input);
+        let mut out = Vec::new();
+        let mut last_token_end: usize = 0;
+        loop {
+            t.skip_ws();
+            if t.is_at_end() {
+                break;
+            }
+            match t.next_token() {
+                Ok(tk) => {
+                    last_token_end = t.pos.offset;
+                    out.push(tk);
+                }
+                Err(_) => break,
+            }
+        }
+        (out, last_token_end)
+    }
+    
     fn is_at_end(&self) -> bool {
         self.pos.offset >= self.input.len()
     }
@@ -112,7 +137,7 @@ impl<'a> Tokeniser<'a> {
                 });
             }
         };
-        Ok(PositionedToken { token, pos: start })
+        Ok(PositionedToken { token, pos: start, end: self.pos })
     }
 
     fn read_literal(&mut self, expected: &[u8], tok: Token) -> Result<Token, Error> {
