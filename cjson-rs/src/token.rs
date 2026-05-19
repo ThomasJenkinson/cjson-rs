@@ -36,5 +36,4 @@ pub enum Token {
       /// Position immediately after the last byte of this token.
       /// Needed by `parse_prefix` to report a precise `parse_end` byte.
       pub end: Position,
-  }
 }
