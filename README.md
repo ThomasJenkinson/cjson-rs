@@ -2,18 +2,13 @@
 
 A memory-safe Rust JSON parser with a drop-in C ABI for [cJSON](https://github.com/DaveGamble/cJSON).
 
-> **Status:** functional. 98% pass rate on the public-API subset of
-> upstream cJSON's test suite. 77/78 cJSON.h functions implemented.
-> Miri-clean on the unsafe FFI shim. Fuzzed (libfuzzer + AddressSanitizer)
-> at ~4.5M iterations across two targets with no crashes.
+> **Status:** functional. 98% pass rate on the public-API subset of upstream cJSON's test suite. 77/78 cJSON.h functions implemented. Miri-clean on the unsafe FFI shim. Fuzzed (libfuzzer + AddressSanitizer) at ~4.5M iterations across two targets with no crashes.
 
 ## Quick example
 
 ### From C (drop-in libcjson replacement)
 
-Existing code that links against `libcjson.so` keeps working — just link
-against the `libcjson.dylib` / `libcjson.so` produced by this project
-instead. No source changes:
+Existing code that links against `libcjson.so` keeps working — just link against the `libcjson.dylib` / `libcjson.so` produced by this project instead. No source changes:
 
 ```c
 #include "cjson.h"
@@ -65,13 +60,9 @@ assert_eq!(round_tripped, r#"{"name":"alice","age":30}"#);
 
 A clean-room Rust implementation of a JSON parser, designed to:
 
-1. **Pass the upstream cJSON test suite** when linked as `libcjson.{so,dylib}`
-   (binary-compatible drop-in replacement).
-2. **Eliminate the C memory-safety bug class.** Recent cJSON CVEs
-   (CVE-2024-31755, CVE-2023-50471, CVE-2023-50472) are null pointer
-   dereferences and missing type checks — gone by construction in Rust.
-3. **Conform to RFC 8259** (the JSON specification), verified against an
-   RFC-driven Rust test suite independent of the upstream tests.
+1. **Pass the upstream cJSON test suite** when linked as `libcjson.{so,dylib}` (binary-compatible drop-in replacement).
+2. **Eliminate the C memory-safety bug class.** Recent cJSON CVEs (CVE-2024-31755, CVE-2023-50471, CVE-2023-50472) are null pointer dereferences and missing type checks — gone by construction in Rust.
+3. **Conform to RFC 8259** (the JSON specification), verified against an RFC-driven Rust test suite independent of the upstream tests.
 
 ## Who should use this
 
@@ -97,20 +88,15 @@ A clean-room Rust implementation of a JSON parser, designed to:
 
 Two crates with a hard safety boundary:
 
-- **`cjson-rs`** — safe Rust core. Marked `#![forbid(unsafe_code)]`.
-  Implements the parser, value model, and serialiser. Exposes a Rust API.
-- **`cjson-rs-ffi`** — C ABI shim. The *only* crate containing `unsafe`
-  code. Mirrors `cJSON.h` byte-for-byte. Validated under cargo-miri.
+- **`cjson-rs`** — safe Rust core. Marked `#![forbid(unsafe_code)]`. Implements the parser, value model, and serialiser. Exposes a Rust API.
+- **`cjson-rs-ffi`** — C ABI shim. The *only* crate containing `unsafe` code. Mirrors `cJSON.h` byte-for-byte. Validated under cargo-miri.
 
 The cdylib output is `libcjson.{so,dylib}` — drop-in named.
 
 ## What this is not
 
-- **Not a translation of cJSON.** See `METHODOLOGY.md`. The Rust parser
-  is built from RFC 8259, not from `cJSON.c`.
-- **Not a replacement for `serde_json`.** Rust-native applications should
-  use serde_json. This project exists to give existing C consumers of
-  cJSON a memory-safe binary they can link instead.
+- **Not a translation of cJSON.** See `METHODOLOGY.md`. The Rust parser is built from RFC 8259, not from `cJSON.c`.
+- **Not a replacement for `serde_json`.** Rust-native applications should use serde_json. This project exists to give existing C consumers of cJSON a memory-safe binary they can link instead.
 
 ## Status
 
@@ -190,5 +176,4 @@ cargo +nightly fuzz run fuzz_ffi_roundtrip -- -max_total_time=60
 
 ## License
 
-MIT — same as cJSON, so contributions can flow either way if a consumer
-needs a feature in both.
+MIT — same as cJSON, so contributions can flow either way if a consumer needs a feature in both.
