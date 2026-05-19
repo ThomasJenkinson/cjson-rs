@@ -2,7 +2,7 @@
 
 A memory-safe Rust JSON parser with a drop-in C ABI for [cJSON](https://github.com/DaveGamble/cJSON).
 
-> **Status:** functional. 98% pass rate on the public-API subset of upstream cJSON's test suite. 77/78 cJSON.h functions implemented. Miri-clean on the unsafe FFI shim. Fuzzed (libfuzzer + AddressSanitizer) at ~4.5M iterations across two targets with no crashes.
+> **Status:** functional. 100% pass rate on the public-API subset of upstream cJSON's test suite. 78/78 cJSON.h functions implemented. Miri-clean on the unsafe FFI shim. Fuzzed (libfuzzer + AddressSanitizer) at ~4.5M iterations across two targets with no crashes — a baseline; extended multi-day runs are planned as part of the funded work.
 
 ## Quick example
 
@@ -107,15 +107,14 @@ The cdylib output is `libcjson.{so,dylib}` — drop-in named.
 | Serialiser (RFC 8259, internal) | 37 | green |
 | FFI smoke (`unsafe` Rust → FFI) | 34 | green |
 | C smoke (real `cc -lcjson`) | 11 | green |
-| **Upstream cJSON, public-API subset** | **64 / 65** | **98%** |
+| **Upstream cJSON, public-API subset** | **65 / 65** | **100%** |
 | Miri (UB detection on FFI) | 34 | clean |
-| Fuzz (libfuzzer + ASan, 2 targets, ~4.5M runs) | — | no crashes |
+| Fuzz (libfuzzer + ASan, 2 targets, ~4.5M runs — baseline) | — | no crashes |
 
 ### Known limitations
 
 | Item | Why | Fix |
 |---|---|---|
-| `cJSON_ParseWithOpts` cannot report parse_end for valid partial input followed by trailing garbage | Our parser eagerly tokenises the whole input. Reporting the parse-end byte position requires lazy tokenisation. | Refactor parser to lazy mode |
 | Upstream tests that `#include "../cJSON.c"` directly (using internal `global_hooks` symbol) are not in the runner | These are white-box tests of cJSON's internals, not real drop-in compat tests. | Out of scope for drop-in validation |
 
 ## Build & test

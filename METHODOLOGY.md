@@ -13,9 +13,9 @@ Four independent layers validate the implementation:
 1. **An RFC 8259-driven Rust test suite** (`cjson-rs/tests/`), written from the specification's grammar productions. Each test cites the RFC section it derives from. 112 tests across tokeniser, parser, and serialiser, all spec-cited.
 2. **Rust-side FFI smoke tests** (`cjson-rs-ffi/tests/ffi_smoke.rs`), exercising every public `cJSON_*` function through `unsafe` Rust calls.
 3. **C-side smoke tests** (`cjson-rs-ffi/tests/c/smoke.c`), compiled with the system `cc` and linked against `libcjson.dylib`. Proves real C consumers can use the shim.
-4. **The upstream cJSON test suite** (`tests/*.c` from [DaveGamble/cJSON](https://github.com/DaveGamble/cJSON), included as a git submodule), linked against `libcjson.dylib` produced by `cjson-rs-ffi` instead of upstream's own build. A shim `common.h` substitutes the public API for upstream's internal helpers so the tests genuinely exercise our shim. **98% pass rate (64/65)** on the public-API subset.
+4. **The upstream cJSON test suite** (`tests/*.c` from [DaveGamble/cJSON](https://github.com/DaveGamble/cJSON), included as a git submodule), linked against `libcjson.dylib` produced by `cjson-rs-ffi` instead of upstream's own build. A shim `common.h` substitutes the public API for upstream's internal helpers so the tests genuinely exercise our shim. **100% pass rate (65/65)** on the public-API subset.
 
-The fuzzing harness (`cargo-fuzz` with libfuzzer + AddressSanitizer) reuses the corpus from the upstream `fuzzing/inputs/` directory. Two targets: one for the safe Rust parser, one for the full FFI round-trip (Parse → Print → Delete). ~4.5M iterations across both with no crashes.
+The fuzzing harness (`cargo-fuzz` with libfuzzer + AddressSanitizer) reuses the corpus from the upstream `fuzzing/inputs/` directory. Two targets: one for the safe Rust parser, one for the full FFI round-trip (Parse → Print → Delete). ~4.5M iterations across both with no crashes — this is a baseline; extended multi-day runs are planned as part of the funded work.
 
 ## What is and isn't borrowed
 
