@@ -3,7 +3,7 @@
 //! Each test cites its spec section. Written before the parser
 //! implementation — see commit history.
 
-use cjson_rs::{parse, parse_with_options, Error, ParserOptions, Value};
+use cjson_rs::{parse, parse_prefix, parse_with_options, Error, ParserOptions, Value};
 
 // ===== RFC 8259 §3: any value can be a top-level JSON text =====
 
@@ -352,4 +352,72 @@ fn parse_string_with_direct_utf8() {
         parse("\"é\"".as_bytes()).unwrap(),
         Value::String("é".to_string())
     );
+}
+
+// ===== parse_prefix: backs cJSON_ParseWithOpts(require_null_terminated=false) =====
+
+#[test]
+fn parse_prefix_stops_after_first_value_with_trailing_garbage() {
+    // Upstream cJSON parse_with_opts_should_return_parse_end:
+    // "[] empty array XD" → returns []; parse_end points to byte 2 (the space).
+    let (v, end) = parse_prefix(b"[] empty array XD").unwrap();
+    assert_eq!(v, Value::Array(vec![]));
+    assert_eq!(end, 2);
+}
+
+#[test]
+fn parse_prefix_on_clean_input_consumes_everything() {
+    let (v, end) = parse_prefix(br#"{"a":1}"#).unwrap();
+    assert!(matches!(v, Value::Object(_)));
+    assert_eq!(end, 7);
+}
+
+#[test]
+fn parse_prefix_with_trailing_whitespace_stops_after_value() {
+    // Trailing whitespace is *not* part of the value — parse_end should point
+    // right after `]`, not after the whitespace.
+    let (v, end) = parse_prefix(b"[]   \n\t").unwrap();
+    assert_eq!(v, Value::Array(vec![]));
+    assert_eq!(end, 2);
+}
+
+#[test]
+fn parse_prefix_with_second_valid_value_stops_after_first() {
+    // "[1,2] 3" — `3` is a valid JSON number too, but it belongs to the
+    // caller's trailing data; parse_prefix returns only the array.
+    // parse_end points right after `]` (byte 5), not past the trailing space.
+    let (v, end) = parse_prefix(b"[1,2] 3").unwrap();
+    if let Value::Array(items) = v {
+        assert_eq!(items.len(), 2);
+    } else {
+        panic!("expected array");
+    }
+    assert_eq!(end, 5);
+}
+
+#[test]
+fn parse_prefix_incomplete_value_errors() {
+    // "[1, 2" — no closing bracket — must error, even though garbage-trailing
+    // is normally allowed. parse_prefix returns the first value, but there
+    // isn't one.
+    assert!(parse_prefix(b"[1, 2").is_err());
+}
+
+#[test]
+fn parse_prefix_pure_garbage_errors() {
+    assert!(parse_prefix(b"junk").is_err());
+}
+
+#[test]
+fn parse_prefix_number_then_garbage() {
+    let (v, end) = parse_prefix(b"42 not json").unwrap();
+    assert_eq!(v, Value::Number(42.0));
+    assert_eq!(end, 2);
+}
+
+#[test]
+fn parse_prefix_string_then_garbage() {
+    let (v, end) = parse_prefix(b"\"hi\" garbage").unwrap();
+    assert_eq!(v, Value::String("hi".into()));
+    assert_eq!(end, 4);
 }
