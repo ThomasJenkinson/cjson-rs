@@ -604,6 +604,197 @@ fn minify_strips_whitespace_in_place() {
     }
 }
 
+// -- cJSON_PrintPreallocated ------------------------------------------------
+//
+// Previously a stub returning false unconditionally. These tests pin down
+// the real semantics: NULL inputs and non-positive lengths return false;
+// undersized buffers return false without touching the buffer; successful
+// writes are NUL-terminated and byte-identical to cJSON_PrintUnformatted /
+// cJSON_Print output.
+
+fn parse_simple_obj() -> *mut cJSON {
+    unsafe {
+        let json = cstr(r#"{"a":1,"b":true}"#);
+        cJSON_Parse(json.as_ptr())
+    }
+}
+
+#[test]
+fn print_preallocated_compact_fills_caller_buffer() {
+    unsafe {
+        let root = parse_simple_obj();
+        assert!(!root.is_null());
+        let mut buf = [0u8; 64];
+        let ok = cJSON_PrintPreallocated(root, buf.as_mut_ptr() as *mut c_char, buf.len() as i32, 0);
+        assert_eq!(ok, 1);
+        let s = CStr::from_ptr(buf.as_ptr() as *const c_char).to_str().unwrap();
+        // Same compact serialisation cJSON_PrintUnformatted would produce.
+        assert_eq!(s, r#"{"a":1,"b":true}"#);
+        cJSON_Delete(root);
+    }
+}
+
+#[test]
+fn print_preallocated_pretty_matches_print() {
+    unsafe {
+        let root = parse_simple_obj();
+        assert!(!root.is_null());
+        let mut buf = [0u8; 256];
+        let ok = cJSON_PrintPreallocated(root, buf.as_mut_ptr() as *mut c_char, buf.len() as i32, 1);
+        assert_eq!(ok, 1);
+        let from_pre = CStr::from_ptr(buf.as_ptr() as *const c_char).to_str().unwrap().to_string();
+
+        // Compare to what cJSON_Print would have produced for the same tree.
+        let alloced = cJSON_Print(root);
+        assert!(!alloced.is_null());
+        let from_print = CStr::from_ptr(alloced).to_str().unwrap().to_string();
+        cJSON_free(alloced as *mut std::ffi::c_void);
+
+        assert_eq!(from_pre, from_print);
+        cJSON_Delete(root);
+    }
+}
+
+#[test]
+fn print_preallocated_null_item_returns_false() {
+    unsafe {
+        let mut buf = [0u8; 16];
+        let r = cJSON_PrintPreallocated(std::ptr::null_mut(), buf.as_mut_ptr() as *mut c_char, buf.len() as i32, 1);
+        assert_eq!(r, 0);
+    }
+}
+
+#[test]
+fn print_preallocated_null_buffer_returns_false() {
+    unsafe {
+        let root = parse_simple_obj();
+        assert!(!root.is_null());
+        let r = cJSON_PrintPreallocated(root, std::ptr::null_mut(), 16, 1);
+        assert_eq!(r, 0);
+        cJSON_Delete(root);
+    }
+}
+
+#[test]
+fn print_preallocated_zero_length_returns_false() {
+    unsafe {
+        let root = parse_simple_obj();
+        assert!(!root.is_null());
+        let mut buf = [0u8; 16];
+        let r = cJSON_PrintPreallocated(root, buf.as_mut_ptr() as *mut c_char, 0, 0);
+        assert_eq!(r, 0);
+        cJSON_Delete(root);
+    }
+}
+
+#[test]
+fn print_preallocated_negative_length_returns_false() {
+    unsafe {
+        let root = parse_simple_obj();
+        assert!(!root.is_null());
+        let mut buf = [0u8; 16];
+        let r = cJSON_PrintPreallocated(root, buf.as_mut_ptr() as *mut c_char, -1, 0);
+        assert_eq!(r, 0);
+        cJSON_Delete(root);
+    }
+}
+
+#[test]
+fn print_preallocated_buffer_too_small_returns_false_and_leaves_buffer_untouched() {
+    unsafe {
+        let root = parse_simple_obj();
+        assert!(!root.is_null());
+        // Pre-fill with a sentinel; compact output is 16 bytes + NUL = 17.
+        let mut buf = [0xAAu8; 8];
+        let r = cJSON_PrintPreallocated(root, buf.as_mut_ptr() as *mut c_char, buf.len() as i32, 0);
+        assert_eq!(r, 0);
+        // Buffer must not have been written to.
+        assert!(buf.iter().all(|&b| b == 0xAA), "buffer was mutated on failure");
+        cJSON_Delete(root);
+    }
+}
+
+#[test]
+fn print_preallocated_exact_size_buffer_succeeds() {
+    unsafe {
+        let root = parse_simple_obj();
+        assert!(!root.is_null());
+        // Compact form is exactly 16 bytes — buffer of 17 is the minimum.
+        let mut buf = [0u8; 17];
+        let r = cJSON_PrintPreallocated(root, buf.as_mut_ptr() as *mut c_char, buf.len() as i32, 0);
+        assert_eq!(r, 1);
+        assert_eq!(buf[16], 0, "trailing NUL not written");
+        let s = CStr::from_ptr(buf.as_ptr() as *const c_char).to_str().unwrap();
+        assert_eq!(s, r#"{"a":1,"b":true}"#);
+        cJSON_Delete(root);
+    }
+}
+
+// -- cJSON_ParseWithOpts: require_null_terminated = false ------------------
+//
+// Mirrors the upstream test parse_with_opts_should_return_parse_end at
+// conformance/upstream-tests/tests/parse_with_opts.c:73. Previously we
+// rejected valid-prefix-then-trailing-bytes as a parse error; now we accept
+// the prefix and report parse_end pointing right after its last byte.
+
+#[test]
+fn parse_with_opts_lax_accepts_prefix_with_trailing_garbage() {
+    unsafe {
+        let s = cstr("[] empty array XD");
+        let mut parse_end: *const c_char = std::ptr::null();
+        let item = cJSON_ParseWithOpts(s.as_ptr(), &mut parse_end, 0);
+        assert!(!item.is_null(), "valid prefix [] must parse in lax mode");
+        assert_eq!(cJSON_IsArray(item), 1);
+        // parse_end must point to byte 2 — right after `]`, at the space.
+        let offset = parse_end as usize - s.as_ptr() as usize;
+        assert_eq!(offset, 2, "parse_end should point right after `]`");
+        cJSON_Delete(item);
+    }
+}
+
+#[test]
+fn parse_with_opts_lax_consumes_whole_input_when_clean() {
+    unsafe {
+        let s = cstr(r#"{"a":1}"#);
+        let mut parse_end: *const c_char = std::ptr::null();
+        let item = cJSON_ParseWithOpts(s.as_ptr(), &mut parse_end, 0);
+        assert!(!item.is_null());
+        let offset = parse_end as usize - s.as_ptr() as usize;
+        assert_eq!(offset, 7);
+        cJSON_Delete(item);
+    }
+}
+
+#[test]
+fn parse_with_opts_strict_rejects_trailing_garbage() {
+    unsafe {
+        let s = cstr("{}x");
+        let item = cJSON_ParseWithOpts(s.as_ptr(), std::ptr::null_mut(), 1);
+        assert!(item.is_null(), "strict mode must reject `{{}}x`");
+    }
+}
+
+#[test]
+fn parse_with_opts_strict_accepts_trailing_whitespace() {
+    unsafe {
+        let s = cstr("{} \t\r\n");
+        let item = cJSON_ParseWithOpts(s.as_ptr(), std::ptr::null_mut(), 1);
+        assert!(!item.is_null(), "strict mode must allow trailing whitespace");
+        cJSON_Delete(item);
+    }
+}
+
+#[test]
+fn parse_with_opts_lax_incomplete_value_still_errors() {
+    unsafe {
+        // No closing bracket — even in lax mode this can't be a valid prefix.
+        let s = cstr("[1, 2");
+        let mut parse_end: *const c_char = std::ptr::null();
+        let item = cJSON_ParseWithOpts(s.as_ptr(), &mut parse_end, 0);
+        assert!(item.is_null());
+    }
+}
+
 // Silence unused-import warnings — these constants are referenced inside
 // `unsafe` blocks but Rust's dead-code analysis doesn't see them.
 #[allow(dead_code)]
