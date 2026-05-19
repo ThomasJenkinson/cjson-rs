@@ -33,20 +33,42 @@ pub fn parse(input: &[u8]) -> Result<Value, Error> {
 
 /// Parse a complete JSON document with caller-supplied options.
 pub fn parse_with_options(input: &[u8], opts: &ParserOptions) -> Result<Value, Error> {
-    let tokens = Tokeniser::tokenise(input)?;
+      let tokens = Tokeniser::tokenise(input)?;
+      let mut parser = Parser {
+          tokens,
+          cursor: 0,
+          depth: 0,
+          limit: opts.nesting_limit,
+      };
+      let value = parser.parse_value()?;
+      if parser.cursor < parser.tokens.len() {
+          return Err(Error::TrailingData {
+              pos: parser.tokens[parser.cursor].pos,
+          });
+      }
+      Ok(value)
+}
+
+/// Parse a single JSON value from the prefix of `input` and return both the
+/// value and the byte offset immediately after its last consumed byte (i.e.
+/// not counting any trailing whitespace or unparsed bytes). Trailing
+/// whitespace, garbage, or extra values are allowed and ignored.
+///
+/// Backs cJSON's `cJSON_ParseWithOpts(..., require_null_terminated = false)`
+/// — see `cjson-rs-ffi/src/lib.rs::cJSON_ParseWithOpts`.
+pub fn parse_prefix(input: &[u8]) -> Result<(Value, usize), Error> {
+    let (tokens, _) = Tokeniser::tokenise_prefix(input);
     let mut parser = Parser {
         tokens,
         cursor: 0,
         depth: 0,
-        limit: opts.nesting_limit,
+        limit: ParserOptions::default().nesting_limit,
     };
     let value = parser.parse_value()?;
-    if parser.cursor < parser.tokens.len() {
-        return Err(Error::TrailingData {
-            pos: parser.tokens[parser.cursor].pos,
-        });
-    }
-    Ok(value)
+    // parse_value consumed at least one token, so cursor >= 1 and the
+    // expression below is safe.
+    let parse_end = parser.tokens[parser.cursor - 1].end.offset;
+    Ok((value, parse_end))
 }
 
 struct Parser {
