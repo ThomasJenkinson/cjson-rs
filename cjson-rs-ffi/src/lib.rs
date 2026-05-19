@@ -35,7 +35,7 @@ pub type cJSON_bool = c_int;
 const CJSON_BOOL_TRUE: c_int = 1;
 const CJSON_BOOL_FALSE: c_int = 0;
 
-const CJSON_VERSION: &str = "cjson-rs 0.0.1\0";
+const CJSON_VERSION: &str = "cjson-rs 0.2.0\0";
 
 // Thread-local: on parse failure we remember a pointer into the caller's
 // input buffer at the byte offset of the error, so `cJSON_GetErrorPtr`
